@@ -6,8 +6,7 @@ import azure.functions as func
 
 bp = func.Blueprint()
 
-
-@bp.route(route="healthz", methods=["GET"])
+@bp.route(route="healthz", methods=["GET"], auth_level=func.AuthLevel.ANONYMOUS)
 def health_check(req: func.HttpRequest) -> func.HttpResponse:
     """Health check endpoint.
 
