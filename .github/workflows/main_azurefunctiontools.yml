@@ -11,7 +11,6 @@ on:
   workflow_dispatch:
 
 env:
-  AZURE_FUNCTIONAPP_PACKAGE_PATH: '.'
   PYTHON_VERSION: '3.13'
 
 jobs:
@@ -29,30 +28,44 @@ jobs:
         with:
           python-version: ${{ env.PYTHON_VERSION }}
 
-      - name: Verify files
+      - name: Upgrade pip
         run: |
-          test -f requirements.txt
-          test -f host.json
+          python -m pip install --upgrade pip setuptools wheel
+
+      - name: Install dependencies into Azure Functions package folder
+        run: |
+          pip install -r requirements.txt --target=".python_packages/lib/site-packages"
+
+      - name: Verify package contents
+        run: |
+          echo "=== root ==="
           ls -la
+          echo "=== python packages ==="
+          ls -la .python_packages/lib/site-packages | head -200
+          python - <<'PY'
+          import os
+          print("cryptography dir exists:", os.path.isdir(".python_packages/lib/site-packages/cryptography"))
+          print("pyjks dir exists:", os.path.isdir(".python_packages/lib/site-packages/jks"))
+          print("requirements exists:", os.path.isfile("requirements.txt"))
+          print("host.json exists:", os.path.isfile("host.json"))
+          PY
 
-      # Optional: tests
-      # - name: Install dependencies for tests
-      #   run: |
-      #     python -m pip install --upgrade pip
-      #     pip install -r requirements.txt
-      # - name: Run tests
-      #   run: pytest
-
-      - name: Zip artifact for deployment
+      - name: Create deployment package
         run: |
-          zip -r release.zip . \
-            -x "venv/*" \
-            -x ".venv/*" \
-            -x "__pycache__/*" \
-            -x ".git/*" \
-            -x ".github/*"
+          mkdir -p package
+          rsync -av \
+            --exclude ".git" \
+            --exclude ".github" \
+            --exclude "venv" \
+            --exclude ".venv" \
+            --exclude "__pycache__" \
+            --exclude ".pytest_cache" \
+            --exclude "tests" \
+            ./ package/
+          cd package
+          zip -r ../release.zip .
 
-      - name: Upload artifact for deployment job
+      - name: Upload artifact
         uses: actions/upload-artifact@v6
         with:
           name: python-app
@@ -66,16 +79,18 @@ jobs:
       contents: read
 
     steps:
-      - name: Download artifact from build job
+      - name: Download artifact
         uses: actions/download-artifact@v4
         with:
           name: python-app
 
-      - name: Unzip artifact for deployment
+      - name: Unzip artifact
         run: |
           unzip -o release.zip -d packaged
+          echo "=== packaged root ==="
           ls -la packaged
-          rm release.zip
+          echo "=== packaged python packages ==="
+          ls -la packaged/.python_packages/lib/site-packages | head -200
 
       - name: Login to Azure
         uses: azure/login@v2
@@ -86,10 +101,7 @@ jobs:
 
       - name: Deploy to Azure Functions
         uses: Azure/functions-action@v1
-        id: deploy-to-function
         with:
           app-name: AzureFunctionTools
           slot-name: Production
           package: packaged
-          scm-do-build-during-deployment: true
-          enable-oryx-build: true
