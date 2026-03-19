@@ -29,3 +29,32 @@
 ```text
 /generate_keystore?code=<KEY>&alias=flutterbase&password=MyPass123&format=p12_base64
 ```
+
+
+## healthz
+
+### エンドポイント
+`GET /healthz`
+
+### レスポンス例
+
+```json
+{
+  "status": "ok",
+  "timestamp": "2026-03-18T00:00:00+00:00",
+  "version": {
+    "git_version": "v1.2.3-4-gabcdef0",
+    "commit_sha": "abcdef0123456789",
+    "branch": "main",
+    "source": "github_actions",
+    "build_number": "123",
+    "workflow_run_id": "9999999999",
+    "workflow_name": "deploy"
+  }
+}
+```
+
+### バージョン解決ルール
+1. GitHub Actions 実行時は `GITHUB_*` を優先して表示
+2. Azure Pipelines 実行時は `BUILD_*` を優先して表示
+3. 上記が無い場合はローカル Git 情報を表示
