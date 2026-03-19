@@ -1,7 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass
-from typing import Any
+from dataclasses import dataclass
 
 
 @dataclass(frozen=True)
@@ -14,5 +13,7 @@ class VersionMetadata:
     workflow_run_id: str | None
     workflow_name: str | None
 
-    def to_dict(self) -> dict[str, Any]:
-        return asdict(self)
+
+@dataclass(frozen=True)
+class VersionMetadataDocument:
+    values: dict[str, str]

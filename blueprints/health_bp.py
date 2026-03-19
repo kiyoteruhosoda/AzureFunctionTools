@@ -9,9 +9,8 @@ import azure.functions as func
 
 from application.health.versioning import VersionMetadataResolver
 from infrastructure.health.providers import (
-    AzureBuildVersionMetadataProvider,
-    GitHubActionsVersionMetadataProvider,
-    LocalGitVersionMetadataProvider,
+    DocumentVersionMetadataProvider,
+    FileVersionMetadataDocumentProvider,
 )
 
 bp = func.Blueprint()
@@ -24,9 +23,7 @@ def health_check(req: func.HttpRequest) -> func.HttpResponse:
 
     version_metadata = VersionMetadataResolver(
         providers=(
-            GitHubActionsVersionMetadataProvider(),
-            AzureBuildVersionMetadataProvider(),
-            LocalGitVersionMetadataProvider(),
+            DocumentVersionMetadataProvider(FileVersionMetadataDocumentProvider()),
         )
     ).resolve()
 

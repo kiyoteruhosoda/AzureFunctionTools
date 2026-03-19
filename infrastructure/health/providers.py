@@ -1,86 +1,51 @@
 from __future__ import annotations
 
 import os
-import subprocess
+from pathlib import Path
 
-from domain.health.models import VersionMetadata
-from domain.health.providers import VersionMetadataProvider
+from domain.health.models import VersionMetadata, VersionMetadataDocument
+from domain.health.providers import VersionMetadataDocumentProvider, VersionMetadataProvider
 
 
-class GitCommandMixin:
-    @staticmethod
-    def run_git_command(*args: str) -> str | None:
-        try:
-            completed = subprocess.run(
-                ["git", *args],
-                check=True,
-                capture_output=True,
-                text=True,
-            )
-        except (FileNotFoundError, subprocess.CalledProcessError):
+class FileVersionMetadataDocumentProvider(VersionMetadataDocumentProvider):
+    def __init__(self, file_path: str | Path | None = None) -> None:
+        configured_path = file_path or os.getenv("HEALTHZ_VERSION_FILE_PATH") or "version-metadata.txt"
+        self._file_path = Path(configured_path)
+
+    def provide(self) -> VersionMetadataDocument | None:
+        if not self._file_path.is_file():
             return None
 
-        return completed.stdout.strip() or None
+        pairs: dict[str, str] = {}
+        for raw_line in self._file_path.read_text(encoding="utf-8").splitlines():
+            line = raw_line.strip()
+            if not line or line.startswith("#") or "=" not in line:
+                continue
 
+            key, value = line.split("=", 1)
+            pairs[key.strip()] = value.strip()
 
-class GitHubActionsVersionMetadataProvider(GitCommandMixin, VersionMetadataProvider):
-    def provide(self) -> VersionMetadata | None:
-        if os.getenv("GITHUB_ACTIONS") != "true":
+        if not pairs:
             return None
 
-        commit_sha = os.getenv("GITHUB_SHA")
-        branch = os.getenv("GITHUB_REF_NAME")
-        build_number = os.getenv("GITHUB_RUN_NUMBER")
-        workflow_run_id = os.getenv("GITHUB_RUN_ID")
-        workflow_name = os.getenv("GITHUB_WORKFLOW")
-
-        git_version = self.run_git_command("describe", "--tags", "--always", "--dirty")
-        if git_version is None:
-            git_version = commit_sha[:7] if commit_sha else None
-
-        return VersionMetadata(
-            git_version=git_version,
-            commit_sha=commit_sha,
-            branch=branch,
-            source="github_actions",
-            build_number=build_number,
-            workflow_run_id=workflow_run_id,
-            workflow_name=workflow_name,
-        )
+        return VersionMetadataDocument(values=pairs)
 
 
-class AzureBuildVersionMetadataProvider(GitCommandMixin, VersionMetadataProvider):
+class DocumentVersionMetadataProvider(VersionMetadataProvider):
+    def __init__(self, document_provider: VersionMetadataDocumentProvider) -> None:
+        self._document_provider = document_provider
+
     def provide(self) -> VersionMetadata | None:
-        build_number = os.getenv("BUILD_BUILDNUMBER")
-        if build_number is None:
+        document = self._document_provider.provide()
+        if document is None:
             return None
 
         return VersionMetadata(
-            git_version=self.run_git_command("describe", "--tags", "--always", "--dirty"),
-            commit_sha=os.getenv("BUILD_SOURCEVERSION") or self.run_git_command("rev-parse", "HEAD"),
-            branch=os.getenv("BUILD_SOURCEBRANCHNAME"),
-            source="azure_pipelines",
-            build_number=build_number,
-            workflow_run_id=os.getenv("BUILD_BUILDID"),
-            workflow_name=os.getenv("BUILD_DEFINITIONNAME"),
-        )
-
-
-class LocalGitVersionMetadataProvider(GitCommandMixin, VersionMetadataProvider):
-    def provide(self) -> VersionMetadata | None:
-        git_version = self.run_git_command("describe", "--tags", "--always", "--dirty")
-        commit_sha = self.run_git_command("rev-parse", "HEAD")
-        branch = self.run_git_command("rev-parse", "--abbrev-ref", "HEAD")
-
-        if git_version is None and commit_sha is None and branch is None:
-            return None
-
-        return VersionMetadata(
-            git_version=git_version,
-            commit_sha=commit_sha,
-            branch=branch,
-            source="git",
-            build_number=os.getenv("BUILD_BUILDNUMBER") or os.getenv("GITHUB_RUN_NUMBER"),
-            workflow_run_id=os.getenv("BUILD_BUILDID") or os.getenv("GITHUB_RUN_ID"),
-            workflow_name=os.getenv("BUILD_DEFINITIONNAME") or os.getenv("GITHUB_WORKFLOW"),
+            git_version=document.values.get("git_version"),
+            commit_sha=document.values.get("commit_sha"),
+            branch=document.values.get("branch"),
+            source=document.values.get("source", "file"),
+            build_number=document.values.get("build_number"),
+            workflow_run_id=document.values.get("workflow_run_id"),
+            workflow_name=document.values.get("workflow_name"),
         )
