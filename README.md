@@ -29,3 +29,43 @@
 ```text
 /generate_keystore?code=<KEY>&alias=flutterbase&password=MyPass123&format=p12_base64
 ```
+
+
+## healthz
+
+### エンドポイント
+`GET /healthz`
+
+### レスポンス例
+
+```json
+{
+  "status": "ok",
+  "timestamp": "2026-03-19T00:00:00+00:00",
+  "version": {
+    "git_version": "v1.2.3-4-gabcdef0",
+    "commit_sha": "abcdef0123456789",
+    "branch": "main",
+    "source": "github_actions",
+    "build_number": "123",
+    "workflow_run_id": "9999999999",
+    "workflow_name": "Build and deploy Python project to Azure Function App - AzureFunctionTools"
+  }
+}
+```
+
+### バージョン解決ルール
+1. ビルド時に `scripts/generate_version_metadata.py` が `version-metadata.txt` を生成します。
+2. 実行時の `healthz` は OS コマンドを実行せず、同梱された `version-metadata.txt` のみを読み取ります。
+3. ファイルが存在しない場合は `source=unavailable` として返します。
+
+### `version-metadata.txt` 形式
+```text
+git_version=v1.2.3-4-gabcdef0
+commit_sha=abcdef0123456789
+branch=main
+source=github_actions
+build_number=123
+workflow_run_id=9999999999
+workflow_name=Build and deploy Python project to Azure Function App - AzureFunctionTools
+```
