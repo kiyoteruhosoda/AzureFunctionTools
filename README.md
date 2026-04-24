@@ -15,6 +15,7 @@
 | `alias` | `flutterbase` | 鍵の別名（エイリアス） |
 | `cn` | `Unknown` | 証明書の Common Name (発行者名) |
 | `format` | `p12` | 出力形式 (`p12`, `jks`, `p12_base64`, `jks_base64`) |
+| `fingerprint` | `true ` | 生成エンドポイント → fingerprint=true を付けるとバイナリの代わりにJSONで返す（Base64keystoreとSHA-256フィンガープリントをセット） |
 
 ### URL 例
 
@@ -30,6 +31,44 @@
 /generate_keystore?code=<KEY>&alias=flutterbase&password=MyPass123&format=p12_base64
 ```
 
+生成 + フィンガープリント同時取得
+```
+GET /api/generate_keystore?alias=myapp&password=secret&cn=MyApp&fingerprint=true
+json{
+  "format": "p12",
+  "alias": "myapp",
+  "keystore_base64": "MIIJkA...",
+  "certificate": {
+    "subject": "CN=MyApp,C=JP",
+    "not_valid_before": "2026-04-24T...",
+    "not_valid_after": "2125-...",
+    "fingerprint_sha256": "A1:B2:C3:..."
+  }
+}
+```
+
+
+## Analyze keystore
+
+### エンドポイント
+`POST /analyze_keystore `
+p12/jksをアップロードするとフィンガープリント等を返す
+
+
+### URL 例
+
+既存ファイルの解析
+```
+# バイナリ直接送信
+curl -X POST \
+  "https://.../api/analyze_keystore?password=secret&format=p12" \
+  --data-binary @myapp.p12
+
+# Base64 で送信
+curl -X POST \
+  "https://.../api/analyze_keystore?password=secret" \
+  --data "$(base64 myapp.p12)"
+```
 
 ## healthz
 
