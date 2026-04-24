@@ -15,7 +15,7 @@
 | `alias` | `flutterbase` | 鍵の別名（エイリアス） |
 | `cn` | `Unknown` | 証明書の Common Name (発行者名) |
 | `format` | `p12` | 出力形式 (`p12`, `jks`, `p12_base64`, `jks_base64`) |
-| `fingerprint` | `true ` | 生成エンドポイント → fingerprint=true を付けるとバイナリの代わりにJSONで返す（Base64keystoreとSHA-256フィンガープリントをセット） |
+| `fingerprint` | `false ` | 生成エンドポイント → fingerprint=true を付けるとバイナリの代わりにJSONで返す（Base64keystoreとSHA-256フィンガープリントをセット） |
 
 ### URL 例
 
